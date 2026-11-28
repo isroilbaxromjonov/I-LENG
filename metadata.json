@@ -1,0 +1,10 @@
+{
+  "name": "Remix I lang — IELTS, Multilevel \u0026 CEFR",
+  "description": "I lang: Ingliz tilini boshlang\u0027ich darajadan IELTS, O\u0027zbekiston Milliy Sertifikat (Multilevel) va CEFR (A1-C1) imtihonlarigacha tayyorlovchi AI platforma.",
+  "requestFramePermissions": [
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

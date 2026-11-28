@@ -1,0 +1,104 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Authenticated learner profile, learning goals, and UI preferences isolated strictly to the account owner.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userName": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "email": { "type": "string", "format": "email", "maxLength": 160 },
+        "photoUrl": { "type": "string", "maxLength": 500 },
+        "currentStageId": { "type": "string", "maxLength": 40 },
+        "selectedExamTrack": { "type": "string", "enum": ["ielts", "cefr", "multilevel"] },
+        "selectedCefrLevel": { "type": "string", "enum": ["A1", "A2", "B1", "B2", "C1"] },
+        "dailyGoalMinutes": { "type": "integer" },
+        "dailyWordGoal": { "type": "integer" },
+        "targetScore": { "type": "string", "maxLength": 60 },
+        "examDate": { "type": "string", "maxLength": 20 },
+        "accent": { "type": "string", "enum": ["british", "american"] },
+        "darkMode": { "type": "boolean" },
+        "notificationsEnabled": { "type": "boolean" },
+        "streakDays": { "type": "integer" },
+        "lastActiveDate": { "type": "string", "maxLength": 20 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "userName", "currentStageId", "createdAt", "updatedAt"]
+    },
+    "UserProgressState": {
+      "title": "UserProgressState",
+      "description": "Learner progression across the 9 Learn stages, grammar mastery, vocabulary SRS, and weak areas stored with native Firestore maps and lists.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "unlockedStages": { "type": "array", "description": "List of unlocked stage IDs (max 9)" },
+        "completedStages": { "type": "array", "description": "List of passed stage IDs (max 9)" },
+        "completedGrammarIds": { "type": "array", "description": "Completed grammar topic IDs" },
+        "completedLessons": { "type": "array", "description": "Completed lesson IDs" },
+        "masteredVocabIds": { "type": "array", "description": "Mastered vocabulary IDs" },
+        "reviewVocabIds": { "type": "array", "description": "Spaced-repetition review word IDs" },
+        "masteredPhraseIds": { "type": "array", "description": "Mastered phrase IDs" },
+        "weakTopics": { "type": "array", "description": "Auto-detected weak topic IDs" },
+        "skillScores": { "type": "object", "description": "Latest numeric scores for grammar, listening, reading, writing, speaking" },
+        "weeklyActivity": { "type": "object", "description": "ISO date to active minutes map" },
+        "completedExercises": { "type": "object", "description": "Map of exerciseId -> { score, total, dateIso }" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "unlockedStages", "completedStages", "updatedAt"]
+    },
+    "PersonalPhrase": {
+      "title": "PersonalPhrase",
+      "description": "User-authored personal phrase card (up to 50 per user).",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "phrase": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "meaningUz": { "type": "string", "minLength": 1, "maxLength": 300 },
+        "usageSituationUz": { "type": "string", "maxLength": 300 },
+        "exampleEn": { "type": "string", "maxLength": 400 },
+        "exampleUz": { "type": "string", "maxLength": 400 },
+        "register": { "type": "string", "enum": ["Speaking", "Writing", "Both"] },
+        "alternatives": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "phrase", "meaningUz", "register", "createdAt"]
+    },
+    "TestAttempt": {
+      "title": "TestAttempt",
+      "description": "Immutable evaluation log for 20-question stage tests, writing, speaking, and mock exams.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "kind": { "type": "string", "enum": ["stage_test", "mock_exam", "writing", "speaking"] },
+        "stageOrTrack": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "score": { "type": "number" },
+        "total": { "type": "number" },
+        "scoreLabel": { "type": "string", "maxLength": 80 },
+        "passed": { "type": "boolean" },
+        "weakTopics": { "type": "array" },
+        "summaryUz": { "type": "string", "maxLength": 1200 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "kind", "stageOrTrack", "scoreLabel", "passed", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "UserProfile" },
+      "description": "Owner-only learner profile and settings."
+    },
+    "/users/{userId}/progress/{docId}": {
+      "schema": { "$ref": "UserProgressState" },
+      "description": "Owner-only progression state document (`state`)."
+    },
+    "/users/{userId}/personalPhrases/{phraseId}": {
+      "schema": { "$ref": "PersonalPhrase" },
+      "description": "Owner-only personal phrase collection (max 50)."
+    },
+    "/users/{userId}/testAttempts/{attemptId}": {
+      "schema": { "$ref": "TestAttempt" },
+      "description": "Owner-only immutable stage test, mock exam, writing, and speaking attempt records."
+    }
+  }
+}

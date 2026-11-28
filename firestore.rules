@@ -1,0 +1,181 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Read-only connectivity probe document
+    match /test/connection {
+      allow get: if true;
+      allow list, write: if false;
+    }
+
+    // Global hardened helpers
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+    function incoming() {
+      return request.resource.data;
+    }
+    function existing() {
+      return resource.data;
+    }
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidUserProfile(data, userId) {
+      return data.keys().hasAll(['uid', 'userName', 'currentStageId', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly([
+          'uid', 'userName', 'email', 'photoUrl', 'currentStageId',
+          'selectedExamTrack', 'selectedCefrLevel', 'dailyGoalMinutes', 'dailyWordGoal',
+          'targetScore', 'examDate', 'accent', 'darkMode', 'notificationsEnabled',
+          'streakDays', 'lastActiveDate', 'createdAt', 'updatedAt'
+        ]) &&
+        data.uid is string && data.uid == userId && data.uid == request.auth.uid &&
+        data.userName is string && data.userName.size() >= 1 && data.userName.size() <= 80 &&
+        data.currentStageId is string && data.currentStageId.size() >= 1 && data.currentStageId.size() <= 40 &&
+        (!('email' in data) || (data.email is string && data.email.size() <= 160)) &&
+        (!('photoUrl' in data) || (data.photoUrl is string && data.photoUrl.size() <= 500)) &&
+        (!('selectedExamTrack' in data) || (data.selectedExamTrack in ['ielts', 'cefr', 'multilevel'])) &&
+        (!('selectedCefrLevel' in data) || (data.selectedCefrLevel in ['A1', 'A2', 'B1', 'B2', 'C1'])) &&
+        (!('dailyGoalMinutes' in data) || (data.dailyGoalMinutes is int && data.dailyGoalMinutes >= 5 && data.dailyGoalMinutes <= 480)) &&
+        (!('dailyWordGoal' in data) || (data.dailyWordGoal is int && data.dailyWordGoal >= 5 && data.dailyWordGoal <= 200)) &&
+        (!('targetScore' in data) || (data.targetScore is string && data.targetScore.size() <= 60)) &&
+        (!('examDate' in data) || (data.examDate is string && data.examDate.size() <= 20)) &&
+        (!('accent' in data) || (data.accent in ['british', 'american'])) &&
+        (!('darkMode' in data) || (data.darkMode is bool)) &&
+        (!('notificationsEnabled' in data) || (data.notificationsEnabled is bool)) &&
+        (!('streakDays' in data) || (data.streakDays is int && data.streakDays >= 0 && data.streakDays <= 10000)) &&
+        (!('lastActiveDate' in data) || (data.lastActiveDate is string && data.lastActiveDate.size() <= 20)) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidProgressState(data, userId) {
+      return data.keys().hasAll(['userId', 'unlockedStages', 'completedStages', 'updatedAt']) &&
+        data.keys().hasOnly([
+          'userId', 'unlockedStages', 'completedStages', 'completedGrammarIds',
+          'completedLessons', 'masteredVocabIds', 'reviewVocabIds', 'masteredPhraseIds',
+          'weakTopics', 'skillScores', 'weeklyActivity', 'completedExercises', 'updatedAt'
+        ]) &&
+        data.userId is string && data.userId == userId && data.userId == request.auth.uid &&
+        data.unlockedStages is list && data.unlockedStages.size() >= 1 && data.unlockedStages.size() <= 9 &&
+        data.unlockedStages[0] is string &&
+        data.completedStages is list && data.completedStages.size() <= 9 &&
+        (!('completedGrammarIds' in data) || (data.completedGrammarIds is list && data.completedGrammarIds.size() <= 250)) &&
+        (!('completedLessons' in data) || (data.completedLessons is list && data.completedLessons.size() <= 500)) &&
+        (!('masteredVocabIds' in data) || (data.masteredVocabIds is list && data.masteredVocabIds.size() <= 3500)) &&
+        (!('reviewVocabIds' in data) || (data.reviewVocabIds is list && data.reviewVocabIds.size() <= 500)) &&
+        (!('masteredPhraseIds' in data) || (data.masteredPhraseIds is list && data.masteredPhraseIds.size() <= 700)) &&
+        (!('weakTopics' in data) || (data.weakTopics is list && data.weakTopics.size() <= 100)) &&
+        (!('skillScores' in data) || (data.skillScores is map && data.skillScores.size() <= 10)) &&
+        (!('weeklyActivity' in data) || (data.weeklyActivity is map && data.weeklyActivity.size() <= 60)) &&
+        (!('completedExercises' in data) || (data.completedExercises is map && data.completedExercises.size() <= 300)) &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidPersonalPhrase(data, userId) {
+      return data.keys().hasAll(['userId', 'phrase', 'meaningUz', 'register', 'createdAt']) &&
+        data.keys().hasOnly([
+          'userId', 'phrase', 'meaningUz', 'usageSituationUz',
+          'exampleEn', 'exampleUz', 'register', 'alternatives', 'createdAt'
+        ]) &&
+        data.userId is string && data.userId == userId && data.userId == request.auth.uid &&
+        data.phrase is string && data.phrase.size() >= 1 && data.phrase.size() <= 200 &&
+        data.meaningUz is string && data.meaningUz.size() >= 1 && data.meaningUz.size() <= 300 &&
+        (!('usageSituationUz' in data) || (data.usageSituationUz is string && data.usageSituationUz.size() <= 300)) &&
+        (!('exampleEn' in data) || (data.exampleEn is string && data.exampleEn.size() <= 400)) &&
+        (!('exampleUz' in data) || (data.exampleUz is string && data.exampleUz.size() <= 400)) &&
+        data.register in ['Speaking', 'Writing', 'Both'] &&
+        (!('alternatives' in data) || (data.alternatives is list && data.alternatives.size() <= 10)) &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidTestAttempt(data, userId) {
+      return data.keys().hasAll(['userId', 'kind', 'stageOrTrack', 'scoreLabel', 'passed', 'createdAt']) &&
+        data.keys().hasOnly([
+          'userId', 'kind', 'stageOrTrack', 'score', 'total',
+          'scoreLabel', 'passed', 'weakTopics', 'summaryUz', 'createdAt'
+        ]) &&
+        data.userId is string && data.userId == userId && data.userId == request.auth.uid &&
+        data.kind in ['stage_test', 'mock_exam', 'writing', 'speaking'] &&
+        data.stageOrTrack is string && data.stageOrTrack.size() >= 1 && data.stageOrTrack.size() <= 80 &&
+        (!('score' in data) || (data.score is number && data.score >= 0 && data.score <= 100)) &&
+        (!('total' in data) || (data.total is number && data.total >= 1 && data.total <= 100)) &&
+        data.scoreLabel is string && data.scoreLabel.size() >= 1 && data.scoreLabel.size() <= 80 &&
+        data.passed is bool &&
+        (!('weakTopics' in data) || (data.weakTopics is list && data.weakTopics.size() <= 30)) &&
+        (!('summaryUz' in data) || (data.summaryUz is string && data.summaryUz.size() <= 1200)) &&
+        data.createdAt is timestamp;
+    }
+
+    match /users/{userId} {
+      allow get: if isValidId(userId) && isOwner(userId);
+      allow list: if false;
+      allow create: if isValidId(userId) && isVerifiedUser() && isOwner(userId) &&
+        isValidUserProfile(incoming(), userId) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(userId) && isVerifiedUser() && isOwner(userId) &&
+        isValidUserProfile(incoming(), userId) &&
+        incoming().uid == existing().uid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'userName', 'email', 'photoUrl', 'currentStageId',
+          'selectedExamTrack', 'selectedCefrLevel', 'dailyGoalMinutes', 'dailyWordGoal',
+          'targetScore', 'examDate', 'accent', 'darkMode', 'notificationsEnabled',
+          'streakDays', 'lastActiveDate', 'updatedAt'
+        ]);
+      allow delete: if false;
+
+      match /progress/{docId} {
+        allow get: if isValidId(userId) && docId == 'state' && isOwner(userId);
+        allow list: if false;
+        allow create: if isValidId(userId) && docId == 'state' && isVerifiedUser() && isOwner(userId) &&
+          isValidProgressState(incoming(), userId) &&
+          incoming().updatedAt == request.time;
+        allow update: if isValidId(userId) && docId == 'state' && isVerifiedUser() && isOwner(userId) &&
+          isValidProgressState(incoming(), userId) &&
+          incoming().userId == existing().userId &&
+          incoming().updatedAt == request.time &&
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'unlockedStages', 'completedStages', 'completedGrammarIds',
+            'completedLessons', 'masteredVocabIds', 'reviewVocabIds', 'masteredPhraseIds',
+            'weakTopics', 'skillScores', 'weeklyActivity', 'completedExercises', 'updatedAt'
+          ]);
+        allow delete: if false;
+      }
+
+      match /personalPhrases/{phraseId} {
+        allow get: if isValidId(userId) && isValidId(phraseId) && isOwner(userId);
+        allow list: if isValidId(userId) && isOwner(userId) && resource.data.userId == request.auth.uid;
+        allow create: if isValidId(userId) && isValidId(phraseId) && isVerifiedUser() && isOwner(userId) &&
+          isValidPersonalPhrase(incoming(), userId) &&
+          incoming().createdAt == request.time;
+        allow update: if false;
+        allow delete: if isValidId(userId) && isValidId(phraseId) && isVerifiedUser() && isOwner(userId) &&
+          existing().userId == request.auth.uid;
+      }
+
+      match /testAttempts/{attemptId} {
+        allow get: if isValidId(userId) && isValidId(attemptId) && isOwner(userId);
+        allow list: if isValidId(userId) && isOwner(userId) && resource.data.userId == request.auth.uid;
+        allow create: if isValidId(userId) && isValidId(attemptId) && isVerifiedUser() && isOwner(userId) &&
+          isValidTestAttempt(incoming(), userId) &&
+          incoming().createdAt == request.time;
+        allow update: if false;
+        allow delete: if false;
+      }
+    }
+  }
+}
